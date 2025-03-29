@@ -1,7 +1,9 @@
 import copy
 import json
 import os
+import sys
 import time
+import traceback
 from typing import Dict
 
 import voyager.utils as U
@@ -11,37 +13,41 @@ from .agents import ActionAgent
 from .agents import CriticAgent
 from .agents import CurriculumAgent
 from .agents import SkillManager
+from .utils.fmt_utils import format_conversation
+
+from langchain.schema import BaseMessage, SystemMessage, HumanMessage, AIMessage
+from typing import List
 
 
 # TODO: remove event memory
 class Voyager:
     def __init__(
         self,
+        endpoint_base: str = "http://localhost:11434",
         mc_port: int = None,
         azure_login: Dict[str, str] = None,
         server_port: int = 3000,
-        openai_api_key: str = None,
         env_wait_ticks: int = 20,
         env_request_timeout: int = 600,
         max_iterations: int = 160,
         reset_placed_if_failed: bool = False,
-        action_agent_model_name: str = "gpt-4",
+        action_agent_model_name: str = "llama2:7b", # should be smart model
         action_agent_temperature: float = 0,
         action_agent_task_max_retries: int = 4,
         action_agent_show_chat_log: bool = True,
         action_agent_show_execution_error: bool = True,
-        curriculum_agent_model_name: str = "gpt-4",
+        curriculum_agent_model_name: str = "llama2:7b", # should be smart model
         curriculum_agent_temperature: float = 0,
-        curriculum_agent_qa_model_name: str = "gpt-3.5-turbo",
+        curriculum_agent_qa_model_name: str = "llama2:7b",
         curriculum_agent_qa_temperature: float = 0,
         curriculum_agent_warm_up: Dict[str, int] = None,
         curriculum_agent_core_inventory_items: str = r".*_log|.*_planks|stick|crafting_table|furnace"
         r"|cobblestone|dirt|coal|.*_pickaxe|.*_sword|.*_axe",
         curriculum_agent_mode: str = "auto",
-        critic_agent_model_name: str = "gpt-4",
+        critic_agent_model_name: str = "llama2:7b", # should be smart model
         critic_agent_temperature: float = 0,
         critic_agent_mode: str = "auto",
-        skill_manager_model_name: str = "gpt-3.5-turbo",
+        skill_manager_model_name: str = "llama2:7b",
         skill_manager_temperature: float = 0,
         skill_manager_retrieval_top_k: int = 5,
         openai_api_request_timeout: int = 240,
@@ -110,15 +116,14 @@ class Voyager:
         self.env_wait_ticks = env_wait_ticks
         self.reset_placed_if_failed = reset_placed_if_failed
         self.max_iterations = max_iterations
-
-        # set openai api key
-        os.environ["OPENAI_API_KEY"] = openai_api_key
+        self.action_agent_model_name = action_agent_model_name
 
         # init agents
         self.action_agent = ActionAgent(
+            endpoint_base=endpoint_base,
             model_name=action_agent_model_name,
             temperature=action_agent_temperature,
-            request_timout=openai_api_request_timeout,
+            request_timeout=openai_api_request_timeout,
             ckpt_dir=ckpt_dir,
             resume=resume,
             chat_log=action_agent_show_chat_log,
@@ -126,11 +131,12 @@ class Voyager:
         )
         self.action_agent_task_max_retries = action_agent_task_max_retries
         self.curriculum_agent = CurriculumAgent(
+            endpoint_base=endpoint_base,
             model_name=curriculum_agent_model_name,
             temperature=curriculum_agent_temperature,
             qa_model_name=curriculum_agent_qa_model_name,
             qa_temperature=curriculum_agent_qa_temperature,
-            request_timout=openai_api_request_timeout,
+            request_timeout=openai_api_request_timeout,
             ckpt_dir=ckpt_dir,
             resume=resume,
             mode=curriculum_agent_mode,
@@ -138,12 +144,14 @@ class Voyager:
             core_inventory_items=curriculum_agent_core_inventory_items,
         )
         self.critic_agent = CriticAgent(
+            endpoint_base=endpoint_base,
             model_name=critic_agent_model_name,
             temperature=critic_agent_temperature,
             request_timout=openai_api_request_timeout,
             mode=critic_agent_mode,
         )
         self.skill_manager = SkillManager(
+            endpoint_base=endpoint_base,
             model_name=skill_manager_model_name,
             temperature=skill_manager_temperature,
             retrieval_top_k=skill_manager_retrieval_top_k,
@@ -203,7 +211,20 @@ class Voyager:
     def step(self):
         if self.action_agent_rollout_num_iter < 0:
             raise ValueError("Agent must be reset before stepping")
-        ai_message = self.action_agent.llm(self.messages)
+
+        # with open("full_prompt.txt", "w") as f:
+        #     f.write(format_conversation(self.messages))
+
+        ai_message = AIMessage(self.action_agent.llm.invoke(
+            format_conversation(self.messages, model_type=self.action_agent_model_name))
+        )
+
+        if "</think>" in ai_message.content:
+            print("Removing the <think> part from response")
+            idx = ai_message.content.find("</think>")
+            if idx >= 0:
+                ai_message.content = ai_message.content[idx + len("</think>"):].strip()
+
         print(f"\033[34m****Action Agent ai message****\n{ai_message.content}\033[0m")
         self.conversations.append(
             (self.messages[0].content, self.messages[1].content, ai_message.content)
@@ -348,7 +369,8 @@ class Voyager:
                 )
                 # use red color background to print the error
                 print("Your last round rollout terminated due to error:")
-                print(f"\033[41m{e}\033[0m")
+                print(f"\033[41m{e.__repr__()}\033[0m")
+                print(f"{traceback.format_exc()}")
 
             if info["success"]:
                 self.skill_manager.add_new_skill(info)

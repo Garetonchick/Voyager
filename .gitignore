@@ -127,3 +127,9 @@ debug_*
 logs/
 plot_iter.py
 *.svg
+
+exchange_*
+mop
+human.txt
+system.txt
+full_prompt.txt

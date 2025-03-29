@@ -3,7 +3,7 @@ import time
 
 import voyager.utils as U
 from javascript import require
-from langchain.chat_models import ChatOpenAI
+from langchain_community.llms import Ollama
 from langchain.prompts import SystemMessagePromptTemplate
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
 
@@ -14,27 +14,31 @@ from voyager.control_primitives_context import load_control_primitives_context
 class ActionAgent:
     def __init__(
         self,
-        model_name="gpt-3.5-turbo",
+        endpoint_base="http://localhost:11434",
+        model_name="llama2:7b",
         temperature=0,
-        request_timout=120,
+        request_timeout=120,
         ckpt_dir="ckpt",
         resume=False,
         chat_log=True,
         execution_error=True,
+        additional_skills=False,
     ):
         self.ckpt_dir = ckpt_dir
         self.chat_log = chat_log
         self.execution_error = execution_error
+        self.additional_skills = additional_skills
         U.f_mkdir(f"{ckpt_dir}/action")
         if resume:
             print(f"\033[32mLoading Action Agent from {ckpt_dir}/action\033[0m")
             self.chest_memory = U.load_json(f"{ckpt_dir}/action/chest_memory.json")
         else:
             self.chest_memory = {}
-        self.llm = ChatOpenAI(
-            model_name=model_name,
+        self.llm = Ollama(
+            model=model_name,
             temperature=temperature,
-            request_timeout=request_timout,
+            timeout=request_timeout,
+            base_url=endpoint_base,
         )
 
     def update_chest_memory(self, chests):
@@ -83,7 +87,7 @@ class ActionAgent:
             "smeltItem",
             "killMob",
         ]
-        if not self.llm.model_name == "gpt-3.5-turbo":
+        if self.additional_skills:
             base_skills += [
                 "useChest",
                 "mineflayer",

@@ -1,8 +1,8 @@
 import os
 
 import voyager.utils as U
-from langchain.chat_models import ChatOpenAI
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_community.llms import Ollama
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.vectorstores import Chroma
 
@@ -13,17 +13,19 @@ from voyager.control_primitives import load_control_primitives
 class SkillManager:
     def __init__(
         self,
-        model_name="gpt-3.5-turbo",
+        endpoint_base="http://localhost:11434",
+        model_name="llama2:7b",
         temperature=0,
         retrieval_top_k=5,
         request_timout=120,
         ckpt_dir="ckpt",
         resume=False,
     ):
-        self.llm = ChatOpenAI(
-            model_name=model_name,
+        self.llm = Ollama(
+            model=model_name,
             temperature=temperature,
-            request_timeout=request_timout,
+            timeout=request_timout,
+            base_url=endpoint_base,
         )
         U.f_mkdir(f"{ckpt_dir}/skill/code")
         U.f_mkdir(f"{ckpt_dir}/skill/description")
@@ -39,7 +41,7 @@ class SkillManager:
         self.ckpt_dir = ckpt_dir
         self.vectordb = Chroma(
             collection_name="skill_vectordb",
-            embedding_function=OpenAIEmbeddings(),
+            embedding_function=HuggingFaceEmbeddings(),
             persist_directory=f"{ckpt_dir}/skill/vectordb",
         )
         assert self.vectordb._collection.count() == len(self.skills), (
@@ -108,7 +110,7 @@ class SkillManager:
                 + f"The main function is `{program_name}`."
             ),
         ]
-        skill_description = f"    // { self.llm(messages).content}"
+        skill_description = f"    // { self.llm.invoke(messages)}"
         return f"async function {program_name}(bot) {{\n{skill_description}\n}}"
 
     def retrieve_skills(self, query):

@@ -6,8 +6,8 @@ import re
 import voyager.utils as U
 from voyager.prompts import load_prompt
 from voyager.utils.json_utils import fix_and_parse_json
-from langchain.chat_models import ChatOpenAI
-from langchain.embeddings.openai import OpenAIEmbeddings
+from langchain_community.llms import Ollama
+from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.vectorstores import Chroma
 
@@ -15,26 +15,29 @@ from langchain.vectorstores import Chroma
 class CurriculumAgent:
     def __init__(
         self,
-        model_name="gpt-3.5-turbo",
+        endpoint_base="http://localhost:11434",
+        model_name="llama2:7b",
         temperature=0,
-        qa_model_name="gpt-3.5-turbo",
+        qa_model_name="llama2:7b",
         qa_temperature=0,
-        request_timout=120,
+        request_timeout=120,
         ckpt_dir="ckpt",
         resume=False,
         mode="auto",
         warm_up=None,
         core_inventory_items: str | None = None,
     ):
-        self.llm = ChatOpenAI(
-            model_name=model_name,
+        self.llm = Ollama(
+            model=model_name,
             temperature=temperature,
-            request_timeout=request_timout,
+            timeout=request_timeout,
+            base_url=endpoint_base,
         )
-        self.qa_llm = ChatOpenAI(
-            model_name=qa_model_name,
+        self.qa_llm = Ollama(
+            model=qa_model_name,
             temperature=qa_temperature,
-            request_timeout=request_timout,
+            timeout=request_timeout,
+            base_url=endpoint_base,
         )
         assert mode in [
             "auto",
@@ -57,7 +60,7 @@ class CurriculumAgent:
         # vectordb for qa cache
         self.qa_cache_questions_vectordb = Chroma(
             collection_name="qa_cache_questions_vectordb",
-            embedding_function=OpenAIEmbeddings(),
+            embedding_function=HuggingFaceEmbeddings(),
             persist_directory=f"{ckpt_dir}/curriculum/vectordb",
         )
         assert self.qa_cache_questions_vectordb._collection.count() == len(
@@ -292,7 +295,7 @@ class CurriculumAgent:
     def propose_next_ai_task(self, *, messages, max_retries=5):
         if max_retries == 0:
             raise RuntimeError("Max retries reached, failed to propose ai task.")
-        curriculum = self.llm(messages).content
+        curriculum = self.llm.invoke(messages)
         print(f"\033[31m****Curriculum Agent ai message****\n{curriculum}\033[0m")
         try:
             response = self.parse_ai_message(curriculum)
@@ -377,7 +380,7 @@ class CurriculumAgent:
         print(
             f"\033[31m****Curriculum Agent task decomposition****\nFinal task: {task}\033[0m"
         )
-        response = self.llm(messages).content
+        response = self.llm.invoke(messages)
         print(f"\033[31m****Curriculum Agent task decomposition****\n{response}\033[0m")
         return fix_and_parse_json(response)
 
@@ -459,7 +462,7 @@ class CurriculumAgent:
                 events=events, chest_observation=chest_observation
             ),
         ]
-        qa_response = self.qa_llm(messages).content
+        qa_response = self.qa_llm.invoke(messages)
         try:
             # Regex pattern to extract question and concept pairs
             pattern = r"Question \d+: (.+)\nConcept \d+: (.+)"
@@ -493,6 +496,6 @@ class CurriculumAgent:
             self.render_human_message_qa_step2_answer_questions(question=question),
         ]
         print(f"\033[35mCurriculum Agent Question: {question}\033[0m")
-        qa_answer = self.qa_llm(messages).content
+        qa_answer = self.qa_llm.invoke(messages)
         print(f"\033[31mCurriculum Agent {qa_answer}\033[0m")
         return qa_answer

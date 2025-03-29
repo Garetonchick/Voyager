@@ -67,11 +67,24 @@ async function collectAll(
                             );
                             // @ts-ignore
                         } else if (err.name === "NoItem") {
-                            const properties =
-                                bot.registry.blocksByName[closest.name];
-                            const leastTool = Object.keys(
-                                properties.harvestTools
-                            )[0];
+                            const properties = closest.name 
+                                ? bot.registry.blocksByName[closest.name]
+                                : undefined;
+
+                            if (!properties) {
+                                throw error("InvalidBlock", "Block has no registry properties");
+                            }
+
+                            if (!properties.harvestTools || typeof properties.harvestTools !== 'object') {
+                                throw error("NoHarvestTools", "Block has no harvestable tools");
+                            }
+
+                            const toolIds = Object.keys(properties.harvestTools).map(Number);
+                            if (toolIds.length === 0) {
+                                throw error("NoHarvestTools", "No available tools for this block");
+                            }
+
+                            const leastTool = toolIds[0];
                             const item = bot.registry.items[leastTool];
                             bot.chat(
                                 `I need at least a ${item.name} to mine ${closest.name}!  Skip it!`

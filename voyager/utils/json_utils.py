@@ -145,6 +145,8 @@ def fix_and_parse_json(
     json_str: str, try_to_fix_with_gpt: bool = True
 ) -> Union[str, Dict[Any, Any]]:
     """Fix and parse JSON string"""
+    json_str = json_str[json_str.find('{'):json_str.rfind('}') + 1]
+    print(f"Fixed critic json is: {json_str}")
     try:
         json_str = json_str.replace("\t", "")
         return json.loads(json_str)
@@ -186,6 +188,8 @@ def fix_and_parse_json(
         #         print("Failed to fix ai output, telling the AI.")
         #         return json_str
         # else:
+        with open("fail.json", "w") as f:
+            f.write(json_str)
         raise e
 
 
