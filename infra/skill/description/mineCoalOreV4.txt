@@ -1,0 +1,3 @@
+async function mineCoalOre(bot) {
+    // The function is about mining 1 coal ore block and checking if coal is successfully obtained in the inventory.
+}

@@ -1,0 +1,3 @@
+async function mineCopperOre(bot) {
+    // The function is about mining copper ore by first ensuring a stone pickaxe is available, crafting one if needed using cobblestone and a crafting table, then locating and mining a copper ore block.
+}

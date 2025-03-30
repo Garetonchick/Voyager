@@ -1,0 +1,3 @@
+async function craftIronSword(bot) {
+    // The function is about crafting an iron sword using a crafting table. First check if an iron sword already exists in the inventory. If not, place a crafting table nearby. Then craft an iron sword using the crafting table. Finally, verify whether the iron sword was successfully crafted.
+}

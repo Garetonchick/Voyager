@@ -6,10 +6,11 @@ import re
 import voyager.utils as U
 from voyager.prompts import load_prompt
 from voyager.utils.json_utils import fix_and_parse_json
-from langchain_community.llms import Ollama
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.vectorstores import Chroma
+
+from voyager.utils import LLMWrapper
 
 
 class CurriculumAgent:
@@ -27,13 +28,13 @@ class CurriculumAgent:
         warm_up=None,
         core_inventory_items: str | None = None,
     ):
-        self.llm = Ollama(
+        self.llm = LLMWrapper(
             model=model_name,
             temperature=temperature,
             timeout=request_timeout,
             base_url=endpoint_base,
         )
-        self.qa_llm = Ollama(
+        self.qa_llm = LLMWrapper(
             model=qa_model_name,
             temperature=qa_temperature,
             timeout=request_timeout,
@@ -47,7 +48,7 @@ class CurriculumAgent:
         self.ckpt_dir = ckpt_dir
         U.f_mkdir(f"{ckpt_dir}/curriculum/vectordb")
         if resume:
-            print(f"\033[35mLoading Curriculum Agent from {ckpt_dir}/curriculum\033[0m")
+            print(f"\033[35mLoading Curriculum Agent from {ckpt_dir}/curriculum\033[0m", flush=True)
             self.completed_tasks = U.load_json(
                 f"{ckpt_dir}/curriculum/completed_tasks.json"
             )
@@ -237,7 +238,7 @@ class CurriculumAgent:
                 if should_include:
                     content += observation[key]
 
-        print(f"\033[35m****Curriculum Agent human message****\n{content}\033[0m")
+        print(f"\033[35m****Curriculum Agent human message****\n{content}\033[0m", flush=True)
         return HumanMessage(content=content)
 
     def propose_next_task(self, *, events, chest_observation, max_retries=5):
@@ -295,8 +296,8 @@ class CurriculumAgent:
     def propose_next_ai_task(self, *, messages, max_retries=5):
         if max_retries == 0:
             raise RuntimeError("Max retries reached, failed to propose ai task.")
-        curriculum = self.llm.invoke(messages)
-        print(f"\033[31m****Curriculum Agent ai message****\n{curriculum}\033[0m")
+        curriculum = self.llm.invoke(messages).content
+        print(f"\033[31m****Curriculum Agent ai message****\n{curriculum}\033[0m", flush=True)
         try:
             response = self.parse_ai_message(curriculum)
             assert "next_task" in response
@@ -304,7 +305,7 @@ class CurriculumAgent:
             return response["next_task"], context
         except Exception as e:
             print(
-                f"\033[35mError parsing curriculum response: {e}. Trying again!\033[0m"
+                f"\033[35mError parsing curriculum response: {e}. Trying again!\033[0m", flush=True
             )
             return self.propose_next_ai_task(
                 messages=messages,
@@ -325,7 +326,7 @@ class CurriculumAgent:
         while not confirmed:
             task = input("Enter task: ")
             context = input("Enter context: ")
-            print(f"Task: {task}\nContext: {context}")
+            print(f"Task: {task}\nContext: {context}", flush=True)
             confirmed = input("Confirm? (y/n)").lower() in ["y", ""]
         return task, context
 
@@ -335,11 +336,11 @@ class CurriculumAgent:
             # No need to record the deposit task
             return
         if info["success"]:
-            print(f"\033[35mCompleted task {task}.\033[0m")
+            print(f"\033[35mCompleted task {task}.\033[0m", flush=True)
             self.completed_tasks.append(task)
         else:
             print(
-                f"\033[35mFailed to complete task {task}. Skipping to next task.\033[0m"
+                f"\033[35mFailed to complete task {task}. Skipping to next task.\033[0m", flush=True
             )
             self.failed_tasks.append(task)
 
@@ -378,10 +379,10 @@ class CurriculumAgent:
             HumanMessage(content=f"Final task: {task}"),
         ]
         print(
-            f"\033[31m****Curriculum Agent task decomposition****\nFinal task: {task}\033[0m"
+            f"\033[31m****Curriculum Agent task decomposition****\nFinal task: {task}\033[0m", flush=True
         )
-        response = self.llm.invoke(messages)
-        print(f"\033[31m****Curriculum Agent task decomposition****\n{response}\033[0m")
+        response = self.llm.invoke(messages).content
+        print(f"\033[31m****Curriculum Agent task decomposition****\n{response}\033[0m", flush=True)
         return fix_and_parse_json(response)
 
     def run_qa(self, *, events, chest_observation):
@@ -462,7 +463,7 @@ class CurriculumAgent:
                 events=events, chest_observation=chest_observation
             ),
         ]
-        qa_response = self.qa_llm.invoke(messages)
+        qa_response = self.qa_llm.invoke(messages).content
         try:
             # Regex pattern to extract question and concept pairs
             pattern = r"Question \d+: (.+)\nConcept \d+: (.+)"
@@ -477,7 +478,7 @@ class CurriculumAgent:
         except Exception as e:
             print(
                 f"\033[35mError parsing curriculum response for "
-                f"QA step 1 ask questions: {e}.\033[0m"
+                f"QA step 1 ask questions: {e}.\033[0m", flush=True
             )
         return questions, concepts
 
@@ -495,7 +496,7 @@ class CurriculumAgent:
             self.render_system_message_qa_step2_answer_questions(),
             self.render_human_message_qa_step2_answer_questions(question=question),
         ]
-        print(f"\033[35mCurriculum Agent Question: {question}\033[0m")
-        qa_answer = self.qa_llm.invoke(messages)
-        print(f"\033[31mCurriculum Agent {qa_answer}\033[0m")
+        print(f"\033[35mCurriculum Agent Question: {question}\033[0m", flush=True)
+        qa_answer = self.qa_llm.invoke(messages).content
+        print(f"\033[31mCurriculum Agent {qa_answer}\033[0m", flush=True)
         return qa_answer

@@ -1,14 +1,13 @@
 import os
 
 import voyager.utils as U
-from langchain_community.llms import Ollama
 from langchain_community.embeddings import HuggingFaceEmbeddings
 from langchain.schema import HumanMessage, SystemMessage
 from langchain.vectorstores import Chroma
 
 from voyager.prompts import load_prompt
 from voyager.control_primitives import load_control_primitives
-
+from voyager.utils import LLMWrapper
 
 class SkillManager:
     def __init__(
@@ -21,7 +20,7 @@ class SkillManager:
         ckpt_dir="ckpt",
         resume=False,
     ):
-        self.llm = Ollama(
+        self.llm = LLMWrapper(
             model=model_name,
             temperature=temperature,
             timeout=request_timout,
@@ -33,7 +32,7 @@ class SkillManager:
         # programs for env execution
         self.control_primitives = load_control_primitives()
         if resume:
-            print(f"\033[33mLoading Skill Manager from {ckpt_dir}/skill\033[0m")
+            print(f"\033[33mLoading Skill Manager from {ckpt_dir}/skill\033[0m", flush=True)
             self.skills = U.load_json(f"{ckpt_dir}/skill/skills.json")
         else:
             self.skills = {}
@@ -68,10 +67,10 @@ class SkillManager:
         program_code = info["program_code"]
         skill_description = self.generate_skill_description(program_name, program_code)
         print(
-            f"\033[33mSkill Manager generated description for {program_name}:\n{skill_description}\033[0m"
+            f"\033[33mSkill Manager generated description for {program_name}:\n{skill_description}\033[0m", flush=True
         )
         if program_name in self.skills:
-            print(f"\033[33mSkill {program_name} already exists. Rewriting!\033[0m")
+            print(f"\033[33mSkill {program_name} already exists. Rewriting!\033[0m", flush=True)
             self.vectordb._collection.delete(ids=[program_name])
             i = 2
             while f"{program_name}V{i}.js" in os.listdir(f"{self.ckpt_dir}/skill/code"):
@@ -110,18 +109,18 @@ class SkillManager:
                 + f"The main function is `{program_name}`."
             ),
         ]
-        skill_description = f"    // { self.llm.invoke(messages)}"
+        skill_description = f"    // { self.llm.invoke(messages).content}"
         return f"async function {program_name}(bot) {{\n{skill_description}\n}}"
 
     def retrieve_skills(self, query):
         k = min(self.vectordb._collection.count(), self.retrieval_top_k)
         if k == 0:
             return []
-        print(f"\033[33mSkill Manager retrieving for {k} skills\033[0m")
+        print(f"\033[33mSkill Manager retrieving for {k} skills\033[0m", flush=True)
         docs_and_scores = self.vectordb.similarity_search_with_score(query, k=k)
         print(
             f"\033[33mSkill Manager retrieved skills: "
-            f"{', '.join([doc.metadata['name'] for doc, _ in docs_and_scores])}\033[0m"
+            f"{', '.join([doc.metadata['name'] for doc, _ in docs_and_scores])}\033[0m", flush=True
         )
         skills = []
         for doc, _ in docs_and_scores:

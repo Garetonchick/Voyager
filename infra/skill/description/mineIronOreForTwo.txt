@@ -1,0 +1,3 @@
+async function mineIronOreForTwo(bot) {
+    // The function is about mining iron ore to obtain at least 2 raw iron. First check the inventory for existing raw iron. If not enough, explore to find iron ore blocks. Once found, mine the required number of iron ore blocks to reach the target of 2 raw iron. Finally verify the inventory count of raw iron.
+}

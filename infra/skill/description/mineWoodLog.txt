@@ -1,0 +1,3 @@
+async function mineWoodLog(bot) {
+    // The function is about finding and mining one wood log of either oak or birch type. First check if a wood log already exists in the inventory. If not, search nearby for oak or birch logs and mine one if found. If no logs are nearby, explore the environment in a random direction to find and mine a log. If no logs are found after exploring, indicate the failure.
+}

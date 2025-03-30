@@ -1,8 +1,8 @@
 from voyager.prompts import load_prompt
 from voyager.utils.json_utils import fix_and_parse_json
-from langchain_community.llms import Ollama
 from langchain.schema import HumanMessage, SystemMessage
-from voyager.utils.fmt_utils import format_conversation
+
+from voyager.utils import LLMWrapper
 
 class CriticAgent:
     def __init__(
@@ -14,7 +14,7 @@ class CriticAgent:
         mode="auto",
     ):
         self.model_name=model_name
-        self.llm = Ollama(
+        self.llm = LLMWrapper(
             model=model_name,
             temperature=temperature,
             timeout=request_timout,
@@ -41,7 +41,7 @@ class CriticAgent:
 
         for i, (event_type, event) in enumerate(events):
             if event_type == "onError":
-                print(f"\033[31mCritic Agent: Error occurs {event['onError']}\033[0m")
+                print(f"\033[31mCritic Agent: Error occurs {event['onError']}\033[0m", flush=True)
                 return None
 
         observation = ""
@@ -76,7 +76,7 @@ class CriticAgent:
         else:
             observation += f"Context: None\n\n"
 
-        print(f"\033[31m****Critic Agent human message****\n{observation}\033[0m")
+        print(f"\033[31m****Critic Agent human message****\n{observation}\033[0m", flush=True)
         return HumanMessage(content=observation)
 
     def human_check_task_success(self):
@@ -87,22 +87,22 @@ class CriticAgent:
             success = input("Success? (y/n)")
             success = success.lower() == "y"
             critique = input("Enter your critique:")
-            print(f"Success: {success}\nCritique: {critique}")
+            print(f"Success: {success}\nCritique: {critique}", flush=True)
             confirmed = input("Confirm? (y/n)") in ["y", ""]
         return success, critique
 
     def ai_check_task_success(self, messages, max_retries=5):
         if max_retries == 0:
             print(
-                "\033[31mFailed to parse Critic Agent response. Consider updating your prompt.\033[0m"
+                "\033[31mFailed to parse Critic Agent response. Consider updating your prompt.\033[0m", flush=True
             )
             return False, ""
 
         if messages[1] is None:
             return False, ""
 
-        critic = self.llm.invoke(format_conversation(messages, model_type=self.model_name))
-        print(f"\033[31m****Critic Agent ai message****\n{critic}\033[0m")
+        critic = self.llm.invoke(messages).content
+        print(f"\033[31m****Critic Agent ai message****\n{critic}\033[0m", flush=True)
         try:
             response = fix_and_parse_json(critic)
             assert response["success"] in [True, False]
@@ -110,7 +110,7 @@ class CriticAgent:
                 response["critique"] = ""
             return response["success"], response["critique"]
         except Exception as e:
-            print(f"\033[31mError parsing critic response: {e} Trying again!\033[0m")
+            print(f"\033[31mError parsing critic response: {e} Trying again!\033[0m", flush=True)
             return self.ai_check_task_success(
                 messages=messages,
                 max_retries=max_retries - 1,

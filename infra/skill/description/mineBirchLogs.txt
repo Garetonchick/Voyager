@@ -1,0 +1,3 @@
+async function mineBirchLogs(bot) {
+    // The function is about collecting 4 birch logs by first checking the inventory for existing logs, then mining any nearby birch logs, and exploring the area if none are found nearby until the required amount is obtained.
+}

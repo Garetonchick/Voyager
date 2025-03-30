@@ -4,54 +4,12 @@ import time
 
 import voyager.utils as U
 from javascript import require
-from langchain_community.llms import Ollama
-from langchain.chat_models import ChatOpenAI
 from langchain.prompts import SystemMessagePromptTemplate
 from langchain.schema import AIMessage, HumanMessage, SystemMessage
 
 from voyager.prompts import load_prompt
 from voyager.control_primitives_context import load_control_primitives_context
-from voyager.utils.fmt_utils import format_conversation
-
-class LLMWrapper:
-    def __init__(
-        self,
-        model,
-        temperature,
-        timeout,
-        base_url,
-    ):
-        self.is_openai = model.startswith("openai_")
-        self.model_name = model
-
-        if self.is_openai:
-            model = model[len("openai_"):]
-            self.model = ChatOpenAI(
-                model_name=model,
-                temperature=temperature,
-                request_timeout=timeout,
-                base_url= "https://api.together.xyz/v1", # "https://models.inference.ai.azure.com", #"https://api.groq.com/openai/v1",
-                api_key=os.environ.get("OPENAI_API_KEY")
-            )
-        else:
-            self.model = Ollama(
-                model=model,
-                temperature=temperature,
-                timeout=timeout,
-                base_url=base_url,
-            )
-
-    def __call__(self, messages):
-        return self.invoke(messages)
-
-    def invoke(self, messages):
-        if self.is_openai:
-            return self.model.invoke(messages)
-
-        if isinstance(messages, list):
-            messages = format_conversation(messages, model_type=self.model_name)
-
-        return AIMessage(self.model.invoke(messages))
+from voyager.utils import LLMWrapper
 
 class ActionAgent:
     def __init__(
@@ -72,7 +30,7 @@ class ActionAgent:
         self.additional_skills = additional_skills
         U.f_mkdir(f"{ckpt_dir}/action")
         if resume:
-            print(f"\033[32mLoading Action Agent from {ckpt_dir}/action\033[0m")
+            print(f"\033[32mLoading Action Agent from {ckpt_dir}/action\033[0m", flush=True)
             self.chest_memory = U.load_json(f"{ckpt_dir}/action/chest_memory.json")
         else:
             self.chest_memory = {}
@@ -92,12 +50,12 @@ class ActionAgent:
                     self.chest_memory[position] = chest
                 if chest == "Invalid":
                     print(
-                        f"\033[32mAction Agent removing chest {position}: {chest}\033[0m"
+                        f"\033[32mAction Agent removing chest {position}: {chest}\033[0m", flush=True
                     )
                     self.chest_memory.pop(position)
             else:
                 if chest != "Invalid":
-                    print(f"\033[32mAction Agent saving chest {position}: {chest}\033[0m")
+                    print(f"\033[32mAction Agent saving chest {position}: {chest}\033[0m", flush=True)
                     self.chest_memory[position] = chest
         U.dump_json(self.chest_memory, f"{self.ckpt_dir}/action/chest_memory.json")
 
