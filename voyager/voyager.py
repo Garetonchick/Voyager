@@ -215,9 +215,7 @@ class Voyager:
         # with open("full_prompt.txt", "w") as f:
         #     f.write(format_conversation(self.messages))
 
-        ai_message = AIMessage(self.action_agent.llm.invoke(
-            format_conversation(self.messages, model_type=self.action_agent_model_name))
-        )
+        ai_message = self.action_agent.llm.invoke(self.messages)
 
         if "</think>" in ai_message.content:
             print("Removing the <think> part from response")

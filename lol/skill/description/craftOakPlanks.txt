@@ -1,0 +1,3 @@
+async function craftOakPlanks(bot) {
+    // The function crafts 4 oak planks by first checking if there are enough oak logs in the inventory and mining one if necessary. It then places a crafting table at a nearby position. After placing the crafting table, the function crafts one recipe of oak planks, which yields 4 planks. Finally, it verifies that at least 4 oak planks were successfully crafted and sends a confirmation or failure message to the chat.
+}

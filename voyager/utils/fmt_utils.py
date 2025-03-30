@@ -9,6 +9,8 @@ def format_conversation(messages, model_type: str = "default") -> str:
         model_type = "gemma"
     elif "deepseek" in model_type:
         model_type = "deepseek"
+    elif "qwen" in model_type:
+        model_type = "qwen"
 
     if not messages:
         raise ValueError("Messages list cannot be empty")
@@ -28,9 +30,15 @@ def format_conversation(messages, model_type: str = "default") -> str:
         },
         "deepseek": {
             "system": ("", ""),
-            "user": ("<｜User｜>", ""),
-            "assistant": ("<｜Assistant｜>", "<｜end▁of▁sentence｜>"),
-            "final": "<｜Assistant｜>",
+            "user": ("<|User|>", ""),
+            "assistant": ("<|Assistant|>", "<|end▁of▁sentence|>"),
+            "final": "<|Assistant|>",
+        },
+        "qwen": {
+            "system": ("<|im_start|>system\n", "<|im_end|>"),
+            "user": ("<|im_start|>user\n", "<|im_end|>\n"),
+            "assistant": ("<|im_start|>assistant",""),
+            "final": "<|im_start|>assistant",
         },
         "llama": {
             "system": ("[INST] <<SYS>>\n", "\n<</SYS>> [/INST]\n"),

@@ -1,0 +1,3 @@
+async function obtainSticks(bot) {
+    // The function checks if the bot has at least 2 sticks, and if not, attempts to obtain more. If no leaves are available, it tries crafting sticks from oak planks. If leaves are available, it breaks a few leaves to get sticks, stopping when it has at least 2. If no leaves or planks are available, it informs the user that it couldn't get sticks.
+}
